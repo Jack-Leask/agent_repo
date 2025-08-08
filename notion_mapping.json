@@ -1,0 +1,8 @@
+{
+  "Task": "title",
+  "Week": "number",
+  "Day": "number",
+  "Status": "select",
+  "Blocking?": "checkbox",
+  "Notes/Links": "rich_text"
+}
