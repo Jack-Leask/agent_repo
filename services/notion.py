@@ -1,31 +1,61 @@
-# Placeholder Notion service. Replace with real Notion SDK calls.
-# For now reads a local CSV exported from Notion to simulate tasks.
-
-import csv
-from datetime import datetime
+# services/notion.py – Notion API version
+import os, requests, datetime
 from .env import ENV
 
-CSV_PATH = "/mnt/data/NZ_Energy_Newsletter_30Day_Tasks.csv"
+BASE = "https://api.notion.com/v1"
+NOTION_TOKEN = os.getenv("NOTION_API_KEY") or ENV.NOTION_TOKEN
+DB_ID = os.getenv("NOTION_DB_ID") or os.getenv("NOTION_DATABASE_ID") or ENV.NOTION_DB_ID
 
-def _read_rows():
-    rows = []
-    try:
-        with open(CSV_PATH, newline="", encoding="utf-8") as f:
-            for i, r in enumerate(csv.DictReader(f)):
-                r["id"] = str(i+1)
-                r["Day"] = int(r["Day"])
-                r["Week"] = int(r["Week"])
-                rows.append(r)
-    except FileNotFoundError:
-        pass
-    return rows
+HEADERS = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Notion-Version": "2022-06-28",
+    "Content-Type": "application/json",
+}
+
+def _query(payload):
+    r = requests.post(f"{BASE}/databases/{DB_ID}/query", headers=HEADERS, json=payload, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+def _page_props(page):
+    p = page.get("properties", {})
+    title = p.get("Task", {}).get("title", [{}])[0].get("plain_text", "")
+    day = p.get("Day", {}).get("number")
+    week = p.get("Week", {}).get("number")
+    status = (p.get("Status", {}).get("select") or {}).get("name")
+    return {"id": page["id"], "Task": title, "Day": day, "Week": week, "Status": status}
 
 def get_today_tasks():
-    rows = _read_rows()
-    # simple demo: return first 3 TODOs
-    todays = [r for r in rows if r.get("Status","") == "Todo"]
-    return todays[:3]
+    today = datetime.datetime.now().day
+    # Try: Day == today & Status == Todo
+    payload = {
+        "filter": {
+            "and": [
+                {"property": "Status", "select": {"equals": "Todo"}},
+                {"property": "Day", "number": {"equals": today}},
+            ]
+        },
+        "sorts": [{"property": "Day", "direction": "ascending"}],
+        "page_size": 3,
+    }
+    data = _query(payload)
+    results = data.get("results", [])
+    if not results:
+        # Fallback: any Todo, earliest Day first
+        payload = {
+            "filter": {"property": "Status", "select": {"equals": "Todo"}},
+            "sorts": [{"property": "Day", "direction": "ascending"}],
+            "page_size": 3,
+        }
+        results = _query(payload).get("results", [])
+    return [_page_props(p) for p in results]
 
-def mark_task_status(task_id: str, status: str):
-    # Placeholder: no writeback in this scaffold.
+def mark_task_status(page_id: str, status: str):
+    r = requests.patch(
+        f"{BASE}/pages/{page_id}",
+        headers=HEADERS,
+        json={"properties": {"Status": {"select": {"name": status}}}},
+        timeout=20,
+    )
+    r.raise_for_status()
     return True
