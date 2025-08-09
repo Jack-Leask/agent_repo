@@ -31,3 +31,14 @@ def start(request: Request, id: str):
 @app.post("/hook/done")
 def done(request: Request, id: str):
     _auth(request); return complete_task(id)
+
+from fastapi import Header, HTTPException
+import os
+
+@app.post("/ping")
+def ping(authorization: str = Header(...)):
+    expected = f"Bearer {os.environ.get('AGENT_BEARER')}"
+    if authorization.strip() == expected:
+        return {"ok": True, "message": "Bearer token accepted"}
+    else:
+        raise HTTPException(status_code=401, detail="Unauthorized")
