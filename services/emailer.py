@@ -1,10 +1,3 @@
-# top of file
-EMAIL_TO   = os.getenv("EMAIL_TO") or os.getenv("EMAIL_USER")
-
-def _send_mail(subject: str, html: str, to: str = None):
-    to = to or EMAIL_TO   # use EMAIL_TO first, fallback to EMAIL_USER
-    ...
-
 import smtplib, ssl, os
 from email.message import EmailMessage
 
@@ -15,6 +8,12 @@ EMAIL_PASS = os.getenv("EMAIL_PASS")
 FROM_NAME  = os.getenv("FROM_NAME", "Newsletter Agent")
 TOKEN = os.getenv("AGENT_BEARER")  # add near top
 
+EMAIL_TO   = os.getenv("EMAIL_TO") or os.getenv("EMAIL_USER")
+
+def _send_mail(subject: str, html: str, to: str = None):
+    to = to or EMAIL_TO   # use EMAIL_TO first, fallback to EMAIL_USER
+    ...
+    
 def _send_mail(subject: str, html: str, to: str = None):
     to = to or EMAIL_USER
     msg = EmailMessage()
