@@ -6,27 +6,32 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 FROM_NAME  = os.getenv("FROM_NAME", "Newsletter Agent")
-TOKEN = os.getenv("AGENT_BEARER")  # add near top
-
-EMAIL_TO   = os.getenv("EMAIL_TO") or os.getenv("EMAIL_USER")
+EMAIL_TO   = os.getenv("EMAIL_TO") or EMAIL_USER
+TOKEN      = os.getenv("AGENT_BEARER", "")
 
 def _send_mail(subject: str, html: str, to: str = None):
-    to = to or EMAIL_TO   # use EMAIL_TO first, fallback to EMAIL_USER
-    ...
-    
-def _send_mail(subject: str, html: str, to: str = None):
-    to = to or EMAIL_USER
+    to = to or EMAIL_TO
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = f"{FROM_NAME} <{EMAIL_USER}>"
     msg["To"] = to
     msg.set_content("HTML only")
     msg.add_alternative(html, subtype="html")
+
     ctx = ssl.create_default_context()
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-        s.starttls(context=ctx)
-        s.login(EMAIL_USER, EMAIL_PASS)
-        s.send_message(msg)
+    try:
+        # Add timeout so requests don’t hang behind Railway
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+            s.ehlo()
+            s.starttls(context=ctx)
+            s.ehlo()
+            s.login(EMAIL_USER, EMAIL_PASS)
+            s.send_message(msg)
+        print(f"[email] sent to {to} via {SMTP_HOST}:{SMTP_PORT} as {EMAIL_USER}")
+        return True
+    except Exception as e:
+        print(f"[email] send failed: {e}")
+        return False
 
 def send_digest(tasks, base_url: str):
     def row(t):
@@ -34,8 +39,8 @@ def send_digest(tasks, base_url: str):
         <tr>
           <td>{t.get('Task')}</td>
           <td>Day {t.get('Day')}</td>
-          <td><a href="{base_url}/hook/start?id={t.get('id')}">Start</a> |
-              <a href="{base_url}/hook/done?id={t.get('id')}">Done</a></td>
+          <td><a href="{base_url}/hook/start?id={t.get('id')}&k={TOKEN}">Start</a> |
+              <a href="{base_url}/hook/done?id={t.get('id')}&k={TOKEN}">Done</a></td>
         </tr>"""
     rows = "".join(row(t) for t in tasks) or "<tr><td colspan=3>No tasks</td></tr>"
     html = f"""
@@ -53,38 +58,3 @@ def send_kickoff_plan(title: str, plan: list[str]):
 
 def send_wrap(text: str):
     _send_mail("Wrap", f"<p>{text}</p>")
-
-def _send_mail(subject: str, html: str, to: str = None):
-    to = to or EMAIL_USER
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = f"{FROM_NAME} <{EMAIL_USER}>"
-    msg["To"] = to
-    msg.set_content("HTML only")
-    msg.add_alternative(html, subtype="html")
-    ctx = ssl.create_default_context()
-    try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-            s.starttls(context=ctx)
-            s.login(EMAIL_USER, EMAIL_PASS)
-            s.send_message(msg)
-    except Exception as e:
-        print(f"[email] send failed: {e}")
-
-def send_digest(tasks, base_url: str):
-    def row(t):
-        return f"""
-        <tr>
-          <td>{t.get('Task')}</td>
-          <td>Day {t.get('Day')}</td>
-          <td><a href="{base_url}/hook/start?id={t.get('id')}&k={TOKEN}">Start</a> |
-              <a href="{base_url}/hook/done?id={t.get('id')}&k={TOKEN}">Done</a></td>
-        </tr>"""
-    ...
-
-print(f"[email] sending to {to} via {SMTP_HOST}:{SMTP_PORT} as {EMAIL_USER}")
-with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-    s.starttls(context=ctx)
-    s.login(EMAIL_USER, EMAIL_PASS)
-    s.send_message(msg)
-print("[email] sent ok")
