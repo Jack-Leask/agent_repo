@@ -82,3 +82,10 @@ def send_digest(tasks, base_url: str):
               <a href="{base_url}/hook/done?id={t.get('id')}&k={TOKEN}">Done</a></td>
         </tr>"""
     ...
+
+print(f"[email] sending to {to} via {SMTP_HOST}:{SMTP_PORT} as {EMAIL_USER}")
+with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+    s.starttls(context=ctx)
+    s.login(EMAIL_USER, EMAIL_PASS)
+    s.send_message(msg)
+print("[email] sent ok")
