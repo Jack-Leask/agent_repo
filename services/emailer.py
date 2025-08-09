@@ -46,3 +46,20 @@ def send_kickoff_plan(title: str, plan: list[str]):
 
 def send_wrap(text: str):
     _send_mail("Wrap", f"<p>{text}</p>")
+
+def _send_mail(subject: str, html: str, to: str = None):
+    to = to or EMAIL_USER
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = f"{FROM_NAME} <{EMAIL_USER}>"
+    msg["To"] = to
+    msg.set_content("HTML only")
+    msg.add_alternative(html, subtype="html")
+    ctx = ssl.create_default_context()
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls(context=ctx)
+            s.login(EMAIL_USER, EMAIL_PASS)
+            s.send_message(msg)
+    except Exception as e:
+        print(f"[email] send failed: {e}")
