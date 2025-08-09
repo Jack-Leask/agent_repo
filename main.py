@@ -42,3 +42,19 @@ def ping(authorization: str = Header(...)):
         return {"ok": True, "message": "Bearer token accepted"}
     else:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+def _auth(req: Request):
+    # Accept header OR ?k= query (for email links)
+    auth = req.headers.get("authorization")
+    key = req.query_params.get("k")
+    if auth == f"Bearer {ENV.AGENT_BEARER}" or key == ENV.AGENT_BEARER:
+        return
+    raise HTTPException(status_code=401, detail="unauthorized")
+
+@app.get("/hook/start")
+def start_get(request: Request, id: str):
+    _auth(request); return start_task(id)
+
+@app.get("/hook/done")
+def done_get(request: Request, id: str):
+    _auth(request); return complete_task(id)

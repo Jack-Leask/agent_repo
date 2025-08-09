@@ -6,6 +6,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 FROM_NAME  = os.getenv("FROM_NAME", "Newsletter Agent")
+TOKEN = os.getenv("AGENT_BEARER")  # add near top
 
 def _send_mail(subject: str, html: str, to: str = None):
     to = to or EMAIL_USER
@@ -63,3 +64,14 @@ def _send_mail(subject: str, html: str, to: str = None):
             s.send_message(msg)
     except Exception as e:
         print(f"[email] send failed: {e}")
+
+def send_digest(tasks, base_url: str):
+    def row(t):
+        return f"""
+        <tr>
+          <td>{t.get('Task')}</td>
+          <td>Day {t.get('Day')}</td>
+          <td><a href="{base_url}/hook/start?id={t.get('id')}&k={TOKEN}">Start</a> |
+              <a href="{base_url}/hook/done?id={t.get('id')}&k={TOKEN}">Done</a></td>
+        </tr>"""
+    ...
