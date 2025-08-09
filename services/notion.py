@@ -115,3 +115,21 @@ def list_todos(limit: int = 10) -> List[Dict[str, Any]]:
     }
     data = _notion_request("POST", f"/databases/{DB_ID}/query", json=payload)
     return [_page_props(p) for p in data.get("results", [])]
+def get_page_title(page_id: str) -> str:
+    r = requests.get(f"{BASE}/pages/{page_id}", headers=HEADERS, timeout=20)
+    r.raise_for_status()
+    p = r.json().get("properties", {})
+    return _get_first_plain_text(p.get("Task", {}).get("title"))
+
+def append_note(page_id: str, text: str) -> bool:
+    r = requests.patch(
+        f"{BASE}/pages/{page_id}",
+        headers=HEADERS,
+        json={"properties": {
+            "Notes/Links": {"rich_text": [{"text": {"content": text}}]}
+        }},
+        timeout=20,
+    )
+    r.raise_for_status()
+    return True
+
