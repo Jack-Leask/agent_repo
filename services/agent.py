@@ -1,24 +1,17 @@
-import os
-from .notion import get_today_tasks, mark_task_status, get_page_title, append_note
-from .emailer import send_digest, send_kickoff_plan, send_wrap
-from .env import ENV
+# services/agent.py
+# Simple agent orchestration with a 7:00 pm NZT digest gate.
 
-# add at top
+import os
 from datetime import datetime
 from dateutil import tz
 
-LOCAL_TZ = tz.gettz(ENV.CAL_TZ or "Pacific/Auckland")
+from .notion import get_today_tasks, mark_task_status, get_page_title, append_note
+from .emailer import send_digest, send_kickoff_plan, send_wrap
+from .env import ENV
+from .time_gate import should_send_now  # make sure services/time_gate.py exists
 
-def _is_digest_window():
-    now = datetime.now(tz=LOCAL_TZ)
-    return now.strftime("%H:%M") == "19:00"
-
-def daily_digest():
-    if not _is_digest_window():
-        return {"ok": True, "sent": 0, "note": "outside 19:00 window"}
-    tasks = get_today_tasks()
-    send_digest(tasks, _base())
-    return {"ok": True, "sent": len(tasks)}
+# Local timezone for pretty timestamps in subjects/logs (uses Railway var if set)
+LOCAL_TZ = tz.gettz(os.getenv("TIMEZONE", "Pacific/Auckland"))
 
 def kickoff_flow():
     tasks = get_today_tasks()
@@ -32,9 +25,19 @@ def wrap_flow():
     return {"ok": True}
 
 def _base():
-    return os.getenv("APP_BASE_URL") or ENV.APP_BASE_URL
+    # Reads APP_BASE_URL from env; no crash if ENV lacks the attribute.
+    return os.getenv("APP_BASE_URL") or getattr(ENV, "APP_BASE_URL", "")
 
 def daily_digest():
+    """
+    Sends the daily Notion digest ONLY at the scheduled local time.
+    Outside that time window it no-ops so you can run an hourly cron safely.
+    """
+    if not should_send_now():
+        # Make it obvious in logs/response that we intentionally skipped.
+        now_str = datetime.now(tz=LOCAL_TZ).strftime("%Y-%m-%d %H:%M %Z")
+        return {"ok": True, "sent": 0, "note": f"outside window ({now_str})"}
+
     tasks = get_today_tasks()
     send_digest(tasks, _base())
     return {"ok": True, "sent": len(tasks)}
@@ -50,10 +53,4 @@ def start_task(page_id: str):
         "Ship a v0 in 45-60 minutes.",
     ]
     send_kickoff_plan(title, plan)
-    return {"ok": True, "id": page_id, "status": "Doing"}
-
-def complete_task(page_id: str):
-    title = get_page_title(page_id)
-    mark_task_status(page_id, "Done")
-    append_note(page_id, "Marked Done via agent.")
-    return {"ok": True, "id": page_id, "status": "Done"}
+    return {"ok": True, "id"
