@@ -3,6 +3,23 @@ from .notion import get_today_tasks, mark_task_status, get_page_title, append_no
 from .emailer import send_digest, send_kickoff_plan, send_wrap
 from .env import ENV
 
+# add at top
+from datetime import datetime
+from dateutil import tz
+
+LOCAL_TZ = tz.gettz(ENV.CAL_TZ or "Pacific/Auckland")
+
+def _is_digest_window():
+    now = datetime.now(tz=LOCAL_TZ)
+    return now.strftime("%H:%M") == "19:00"
+
+def daily_digest():
+    if not _is_digest_window():
+        return {"ok": True, "sent": 0, "note": "outside 19:00 window"}
+    tasks = get_today_tasks()
+    send_digest(tasks, _base())
+    return {"ok": True, "sent": len(tasks)}
+
 def kickoff_flow():
     tasks = get_today_tasks()
     return {"ok": True, "top": tasks}

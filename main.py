@@ -58,3 +58,8 @@ def start_get(request: Request, id: str):
 @app.get("/hook/done")
 def done_get(request: Request, id: str):
     _auth(request); return complete_task(id)
+
+@app.get("/hook/digest")
+def digest_get(request: Request):
+    _auth(request); return daily_digest()
+
