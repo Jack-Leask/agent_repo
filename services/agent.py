@@ -1,5 +1,5 @@
 # services/agent.py
-# Simple agent orchestration with a 7:00 pm NZT digest gate.
+# Agent orchestration with a 7:00 pm NZT digest gate.
 
 import os
 from datetime import datetime
@@ -10,7 +10,7 @@ from .emailer import send_digest, send_kickoff_plan, send_wrap
 from .env import ENV
 from .time_gate import should_send_now  # make sure services/time_gate.py exists
 
-# Local timezone for pretty timestamps in subjects/logs (uses Railway var if set)
+# Local timezone for timestamps in subjects/logs
 LOCAL_TZ = tz.gettz(os.getenv("TIMEZONE", "Pacific/Auckland"))
 
 def kickoff_flow():
@@ -25,7 +25,7 @@ def wrap_flow():
     return {"ok": True}
 
 def _base():
-    # Reads APP_BASE_URL from env; no crash if ENV lacks the attribute.
+    # Prefer APP_BASE_URL env; fallback to ENV.APP_BASE_URL if present
     return os.getenv("APP_BASE_URL") or getattr(ENV, "APP_BASE_URL", "")
 
 def daily_digest():
@@ -34,7 +34,6 @@ def daily_digest():
     Outside that time window it no-ops so you can run an hourly cron safely.
     """
     if not should_send_now():
-        # Make it obvious in logs/response that we intentionally skipped.
         now_str = datetime.now(tz=LOCAL_TZ).strftime("%Y-%m-%d %H:%M %Z")
         return {"ok": True, "sent": 0, "note": f"outside window ({now_str})"}
 
@@ -53,4 +52,10 @@ def start_task(page_id: str):
         "Ship a v0 in 45-60 minutes.",
     ]
     send_kickoff_plan(title, plan)
-    return {"ok": True, "id"
+    return {"ok": True, "id": page_id, "status": "Doing"}
+
+def complete_task(page_id: str):
+    title = get_page_title(page_id)
+    mark_task_status(page_id, "Done")
+    append_note(page_id, "Marked Done via agent.")
+    return {"ok": True, "id": page_id, "status": "Done"}
