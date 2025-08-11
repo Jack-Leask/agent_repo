@@ -30,16 +30,13 @@ def _base():
 
 def daily_digest():
     """
-    Sends the daily Notion digest ONLY at the scheduled local time.
-    Outside that time window it no-ops so you can run an hourly cron safely.
+    Send the Notion digest whenever this endpoint is called.
+    (No time gate. Use cron to control when it runs.)
     """
-    if not should_send_now():
-        now_str = datetime.now(tz=LOCAL_TZ).strftime("%Y-%m-%d %H:%M %Z")
-        return {"ok": True, "sent": 0, "note": f"outside window ({now_str})"}
-
     tasks = get_today_tasks()
     send_digest(tasks, _base())
     return {"ok": True, "sent": len(tasks)}
+
 
 def start_task(page_id: str):
     title = get_page_title(page_id)
