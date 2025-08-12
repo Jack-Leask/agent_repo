@@ -68,6 +68,9 @@ def send_email(subject: str, html: str, to_email: Optional[str] = None) -> bool:
     except Exception as e:
         print(f"[email] send failed: {e}")
         return False
+    resp = client.send(msg)
+print(f"[email] SG status={resp.status_code}, body={resp.body}, headers={resp.headers}")
+
 
 # --- Domain-specific helpers you’re calling from the agent ---
 
