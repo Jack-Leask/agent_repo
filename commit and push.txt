@@ -1,0 +1,8 @@
+# Stage the file you changed
+git add services/agent.py
+
+# Commit with a clear message
+git commit -m "Remove time window check from daily_digest to allow sending on any cron trigger"
+
+# Push to Railway's connected repo (usually 'main' or 'master')
+git push origin main

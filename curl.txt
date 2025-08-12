@@ -1,0 +1,4 @@
+curl -Method POST `
+  -Uri "https://web-production-a88f.up.railway.app/hook/digest?k=S1NnhigsTpe5WgJ_YX802kIqagCqFx5ITkgPPRPcW_C3SP3fd8si65h51ASZFxeV" `
+  -Headers @{ "Content-Type" = "application/json" } `
+  -Body "{}"
